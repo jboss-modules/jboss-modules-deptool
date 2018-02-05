@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.jboss.modules</groupId>
+    <artifactId>jboss-modules-deptool</artifactId>
+    <version>1.0.0.Beta1-SNAPSHOT</version>
+
+    <parent>
+        <groupId>org.jboss</groupId>
+        <artifactId>jboss-parent</artifactId>
+        <version>25</version>
+    </parent>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.jboss.modules</groupId>
+            <artifactId>jboss-modules</artifactId>
+            <version>1.7.0.Final-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+            <version>6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.io7m.xom</groupId>
+            <artifactId>xom</artifactId>
+            <version>1.2.10</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>org.jboss.modules.deptool.Main</mainClass>
+                        </manifest>
+                        <manifestEntries>
+                            <Dependencies>org.ow2.asm,com.io7m.xom</Dependencies>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>install-asm</id>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeArtifactIds>asm</includeArtifactIds>
+                            <outputDirectory>${project.build.directory}/classes/modules/org/ow2/asm/main/classes</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-xom</id>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeArtifactIds>xom</includeArtifactIds>
+                            <outputDirectory>${project.build.directory}/classes/modules/com/io7m/xom/main/classes</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
