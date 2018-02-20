@@ -20,10 +20,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 import nu.xom.Builder;
+import nu.xom.Comment;
 import nu.xom.Document;
 import nu.xom.Element;
 import nu.xom.Elements;
@@ -206,7 +208,7 @@ public final class Main {
                 }
             } else if (moduleSpec instanceof AliasModuleSpec) {
                 final AliasModuleSpec aliasModuleSpec = (AliasModuleSpec) moduleSpec;
-                rootIndex.addAlias(aliasModuleSpec.getAliasName(), aliasModuleSpec.getName());
+                rootIndex.addAlias(aliasModuleSpec.getName(), aliasModuleSpec.getAliasName());
                 aliasCnt.getAndIncrement();
                 showProgress(progress, cnt);
             }
@@ -345,6 +347,10 @@ public final class Main {
                         continue outer;
                     }
                 }
+                // maybe it's optional
+                if (dependencySpec instanceof ModuleDependencySpec && ((ModuleDependencySpec) dependencySpec).isOptional()) {
+                    continue outer;
+                }
                 if (print) System.out.printf("Unused dependency from \"%s\" to \"%s\"%n", moduleIndex.getName(), dependencyModuleIndex.getName());
                 unusedDeps.computeIfAbsent(moduleIndex, ignored -> new ArrayList<>()).add(dependency);
                 unusedCnt.getAndIncrement();
@@ -401,18 +407,32 @@ public final class Main {
                 final Collection<DependencyInfo> unusedDependencies = entry.getValue();
                 for (int i = 0; i < size; i ++) {
                     final Element dependencyElement = dependencyElements.get(i);
-                    for (DependencyInfo dependency : unusedDependencies) {
+                    dep: for (DependencyInfo dependency : unusedDependencies) {
                         final String dependencyName = dependency.getDependencyModuleIndex().getName();
                         if (dependencyName.equals(dependencyElement.getAttributeValue("name"))) {
                             int idx = dependenciesElement.indexOf(dependencyElement);
+                            // see if it's marked "keep"
+                            for (int fi = idx - 1; fi >= 0; fi --) {
+                                final Node sibling = dependenciesElement.getChild(fi);
+                                if (sibling instanceof Comment && sibling.getValue().trim().toLowerCase(Locale.ROOT).equals("keep")) {
+                                    if (warn) System.err.println("Explicitly preserving dependency " + dependencyName + " in " + moduleXml);
+                                    // skip this one explicitly
+                                    continue dep;
+                                } else if (sibling instanceof Element) {
+                                    break;
+                                }
+                            }
                             dependenciesElement.removeChild(idx);
                             while (idx > 0) {
                                 idx --;
                                 final Node sibling = dependenciesElement.getChild(idx);
-                                if (sibling instanceof Text) {
+                                if (sibling instanceof Comment) {
+                                    dependenciesElement.removeChild(idx);
+                                } else if (sibling instanceof Text) {
                                     final Text text = (Text) sibling;
-                                    if (text.getValue().trim().isEmpty()) {
-                                        dependenciesElement.removeChild(idx);
+                                    dependenciesElement.removeChild(idx);
+                                    if (! text.getValue().trim().isEmpty()) {
+                                        if (warn) System.err.println("Removed extra text around " + dependencyElement + " in " + moduleXml);
                                     }
                                 } else {
                                     break;
@@ -577,13 +597,15 @@ public final class Main {
 
         public void visit(final int version, final int access, final String name, final String signature, final String superName, final String[] interfaces) {
             final RootIndex rootIndex = classIndex.getModuleIndex().getRootIndex();
-            classIndex.setSuperClassName(rootIndex.intern(superName.replace('.', '/')));
-            classIndex.addMemberClassRef(superName);
+            if (superName != null) {
+                classIndex.setSuperClassName(rootIndex.intern(superName.replace('.', '/')));
+                classIndex.addMemberClassRef(superName);
+            }
             String[] inames = new String[interfaces.length];
             for (int i = 0; i < interfaces.length; i++) {
                 final String iName = interfaces[i];
                 classIndex.addMemberClassRef(iName);
-                inames[i] = rootIndex.intern(superName.replace('.', '/'));
+                inames[i] = rootIndex.intern(iName.replace('.', '/'));
             }
             classIndex.setInterfaceNames(inames);
             classIndex.setName(name);
